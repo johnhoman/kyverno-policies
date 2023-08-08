@@ -1,0 +1,39 @@
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: replace-default-registry
+spec:
+  rules:
+  - name: mutate
+    match:
+      any:
+      - resources:
+          kinds:
+          - Pod
+    context:
+    - name: env
+      configMap:
+        name: env
+        namespace: default
+    - name: mirror
+      variable:
+        jmesPath: env.data."registry.mirror"
+        default: registry.example.com
+    mutate:
+      foreach:
+      - list: request.object.spec.containers
+        context:
+        - name: registry
+          variable:
+            jmesPath: images.containers.{{element.name}}.registry
+        preconditions:
+          any:
+          - key: "{{ registry }}"
+            operator: Equals
+            value: docker.io
+        patchStrategicMerge:
+          spec:
+            containers:
+            - name: "{{ element.name }}"
+              image: "{{ mirror }}/{{ element.image | trim_prefix(@, 'docker.io/') }}"
