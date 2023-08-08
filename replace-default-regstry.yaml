@@ -23,13 +23,9 @@ spec:
     mutate:
       foreach:
       - list: request.object.spec.containers
-        context:
-        - name: registry
-          variable:
-            jmesPath: images.containers.{{element.name}}.registry
         preconditions:
           any:
-          - key: "{{ registry }}"
+          - key: "{{ images.containers.{{element.name}}.registry }}"
             operator: Equals
             value: docker.io
         patchStrategicMerge:
@@ -37,3 +33,15 @@ spec:
             containers:
             - name: "{{ element.name }}"
               image: "{{ mirror }}/{{ element.image | trim_prefix(@, 'docker.io/') }}"
+      - list: request.object.spec.initContainers || []
+        preconditions:
+          any:
+          - key: "{{ images.initContainers.{{element.name}}.registry }}"
+            operator: Equals
+            value: docker.io
+        patchStrategicMerge:
+          spec:
+            initContainers:
+            - name: "{{ element.name }}"
+              image: "{{ mirror }}/{{ element.image | trim_prefix(@, 'docker.io/') }}"
+
